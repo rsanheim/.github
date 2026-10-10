@@ -56,7 +56,7 @@ Before the first release, configure a RubyGems trusted publisher for each gem:
 | Workflow filename | `gem-release.yml` |
 | Workflow Repository Owner | `rsanheim` |
 | Workflow Repository Name | `.github` |
-| Environment | Leave blank |
+| Environment | `release` |
 
 The workflow repository fields identify this reusable workflow; the repository
 fields identify the calling gem repository. See the
