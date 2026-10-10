@@ -1,2 +1,3 @@
-# workflows
-workflows for OSS things
+# rsanheim/.github
+
+shared actions, workflows, and whatever for OSS things
