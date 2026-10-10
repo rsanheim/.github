@@ -1,0 +1,104 @@
+name: Gem release
+
+on:
+  workflow_call:
+    inputs:
+      gem:
+        description: RubyGems gem name
+        required: true
+        type: string
+      gemspec:
+        description: Gemspec path relative to the gem repository root
+        required: true
+        type: string
+      ruby-version:
+        description: Ruby used to evaluate, build and publish the gem
+        required: true
+        type: string
+      required-statuses:
+        description: JSON array of external CI status contexts on the merged commit
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      release: ${{ steps.prepare.outputs.release }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      # job.workflow_* identifies this reusable workflow, not its caller.
+      - uses: actions/checkout@v5
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .release-workflow
+          persist-credentials: false
+      - run: echo '/.release-workflow/' >> "$(git rev-parse --git-path info/exclude)"
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ inputs.ruby-version }}
+      - id: prepare
+        name: Check the effective gem version and changelog
+        run: ruby .release-workflow/script/gem_release.rb prepare
+        env:
+          RELEASE_CONFIG: ${{ toJSON(inputs) }}
+          GH_TOKEN: ${{ github.token }}
+
+  publish:
+    needs: prepare
+    if: github.event_name == 'push' && needs.prepare.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Keep every release queued and never interrupt publication.
+    concurrency:
+      group: gem-publication
+      queue: max
+    permissions:
+      contents: write
+      statuses: read
+      id-token: write
+    env:
+      RELEASE_CONFIG: ${{ toJSON(inputs) }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/checkout@v5
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .release-workflow
+          persist-credentials: false
+      - run: echo '/.release-workflow/' >> "$(git rev-parse --git-path info/exclude)"
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ inputs.ruby-version }}
+          bundler-cache: true
+      - name: Wait for external CI on the exact merged commit
+        run: ruby .release-workflow/script/gem_release.rb wait
+      - name: Create or verify the immutable version tag
+        run: ruby .release-workflow/script/gem_release.rb tag
+      - name: Build the gem for safe retry verification
+        run: |
+          echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)" >> "$GITHUB_ENV"
+          SOURCE_DATE_EPOCH=$(git log -1 --format=%ct) bundle exec rake build
+      - id: published
+        name: Detect an already published identical gem
+        run: ruby .release-workflow/script/gem_release.rb published
+      - uses: rubygems/release-gem@v1
+        if: steps.published.outputs.published != 'true'
+      - name: Publish the GitHub release from CHANGELOG.md
+        run: ruby .release-workflow/script/gem_release.rb finish

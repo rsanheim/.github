@@ -1,0 +1,25 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '4.0'
+      - run: ruby script/gem_release_test.rb
+      # 1.7.12 predates these documented GitHub.com workflow features.
+      - uses: docker://rhysd/actionlint:1.7.12
+        with:
+          args: >-
+            -ignore 'property "workflow_(repository|sha)" is not defined'
+            -ignore 'unexpected key "queue" for "concurrency" section'
