@@ -2,8 +2,7 @@
 
 `gem-release.yml` checks the effective gemspec version in each PR. A version
 increase requires a nonempty matching section in `CHANGELOG.md`; decreases fail.
-When the PR merges into `main`, the workflow waits for the configured external
-CI statuses on that exact commit, creates `vVERSION` at the same commit, runs
+When the PR merges into `main`, the workflow creates `vVERSION` at that commit, runs
 the official `rubygems/release-gem@v1` action, and publishes the matching changelog
 section as the GitHub release. Merges without a version change stop after the
 version check.
@@ -12,10 +11,14 @@ To release, change the version in your gemspec or its required version file,
 add release notes under `## VERSION` or `## [VERSION] - YYYY-MM-DD`, and merge
 the PR after its checks pass. There are no release labels or post-merge version
 commits. Keep your gem's normal `require "bundler/gem_tasks"` release task.
+Required CI checks belong in the gem repository's branch protection or ruleset
+and must pass before merge. Publication starts after merge without waiting for
+another CI run on `main`. This workflow does not configure repository rules.
 
 Add this thin caller as `.github/workflows/release.yml` in the gem repository,
 replacing `SHARED_COMMIT_SHA` with the same reviewed 40-character shared commit
-SHA in every consumer. Only the four inputs vary by gem:
+SHA in every consumer. Only the gem name and Ruby version vary by gem; the
+gemspec is always loaded from `<gem>.gemspec` at the repository root:
 
 ```yaml
 name: Release
@@ -27,16 +30,13 @@ on:
 permissions:
   contents: write
   pull-requests: read
-  statuses: read
   id-token: write
 jobs:
   release:
     uses: rsanheim/.github/.github/workflows/gem-release.yml@SHARED_COMMIT_SHA
     with:
       gem: example
-      gemspec: example.gemspec
       ruby-version: '4.0.0'
-      required-statuses: '["external/test"]'
 ```
 
 The shared workflow reduces permissions for its PR/version-check job to read
@@ -77,7 +77,7 @@ merge commits, squash merges, and rebased PR merges are resolved by their exact
 GitHub merge SHA.
 
 Run `ruby script/gem_release_test.rb` to test version detection, changelog rules,
-exact commit selection, CI failures, tag conflicts, and publication retries.
+exact commit selection, tag conflicts, and publication retries.
 The tests use disposable local Git fixtures and mock all network operations;
 they never push a tag, upload a gem, or create a GitHub release.
 `actionlint` 1.7.12 needs the two narrow exclusions shown in the test workflow

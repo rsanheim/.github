@@ -42,7 +42,7 @@ class GemRelease
       command("git", "archive", "--output", archive, ref)
       command("tar", "-xf", archive, "-C", directory)
       loader = 'require "json"; spec = Gem::Specification.load(ARGV.fetch(0)); abort "Cannot load gemspec" unless spec; puts JSON.generate([spec.name, spec.version.to_s])'
-      name, value = JSON.parse(command("ruby", "-C", directory, "-e", loader, @config.fetch("gemspec")))
+      name, value = JSON.parse(command("ruby", "-C", directory, "-e", loader, "#{@config.fetch("gem")}.gemspec"))
       raise "Unexpected gem name: #{name}" unless name == @config.fetch("gem")
       value
     end
@@ -93,22 +93,6 @@ class GemRelease
     api("releases?per_page=100", list: true)
   end
 
-  def wait
-    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 1800
-    loop do
-      statuses = api("commits/#{@sha}/statuses?per_page=100", list: true)
-      # GitHub returns newest statuses first; an old success cannot mask failure.
-      latest = statuses.each_with_object({}) { |status, result| result[status.fetch("context")] ||= status.fetch("state") }
-      required = JSON.parse(@config.fetch("required-statuses"))
-      raise "At least one external CI status is required" if required.empty?
-      states = required.map { |context| latest[context] }
-      raise "External CI failed for #{@sha}: #{latest}" if states.any? { |state| %w[failure error].include?(state) }
-      return if states.all? { |state| state == "success" }
-      raise "Timed out waiting for external CI on #{@sha}" if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
-      sleep 20
-    end
-  end
-
   def tag
     name = "v#{version}"
     refs = command("git", "ls-remote", "origin", "refs/tags/#{name}", "refs/tags/#{name}^{}").lines.map(&:split)
@@ -153,6 +137,6 @@ end
 
 if $PROGRAM_NAME == __FILE__
   mode = ARGV.fetch(0)
-  abort "Unknown release command" unless %w[prepare wait tag published finish].include?(mode)
+  abort "Unknown release command" unless %w[prepare tag published finish].include?(mode)
   GemRelease.new.public_send(mode)
 end

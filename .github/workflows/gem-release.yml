@@ -7,16 +7,8 @@ on:
         description: RubyGems gem name
         required: true
         type: string
-      gemspec:
-        description: Gemspec path relative to the gem repository root
-        required: true
-        type: string
       ruby-version:
         description: Ruby used to evaluate, build and publish the gem
-        required: true
-        type: string
-      required-statuses:
-        description: JSON array of external CI status contexts on the merged commit
         required: true
         type: string
 
@@ -66,7 +58,6 @@ jobs:
       queue: max
     permissions:
       contents: write
-      statuses: read
       id-token: write
     env:
       RELEASE_CONFIG: ${{ toJSON(inputs) }}
@@ -87,8 +78,6 @@ jobs:
         with:
           ruby-version: ${{ inputs.ruby-version }}
           bundler-cache: true
-      - name: Wait for external CI on the exact merged commit
-        run: ruby .release-workflow/script/gem_release.rb wait
       - name: Create or verify the immutable version tag
         run: ruby .release-workflow/script/gem_release.rb tag
       - name: Build the gem for safe retry verification

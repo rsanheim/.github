@@ -9,7 +9,7 @@ class FakeRelease < GemRelease
   attr_reader :outputs, :calls
 
   def initialize
-    super({"gem" => "example", "gemspec" => "example.gemspec", "required-statuses" => '["external/test"]'})
+    super({"gem" => "example"})
     @sha = "merged-sha"
     @responses = {}
     @versions = {"merged-sha" => "1.1.0", "previous-sha" => "1.0.0"}
@@ -47,10 +47,6 @@ class FakeRelease < GemRelease
 
   def registry
     @remote
-  end
-
-  def sleep(_seconds)
-    raise "Waiting for missing or pending CI"
   end
 end
 
@@ -108,17 +104,6 @@ event("push", {"before" => "previous-sha"}) do
 end
 
 runner = FakeRelease.new
-statuses_path = "commits/merged-sha/statuses?per_page=100"
-runner.responses[statuses_path] = [{"context" => "external/test", "state" => "success"}]
-runner.wait
-runner.responses[statuses_path] = [{"context" => "external/test", "state" => "failure"}, {"context" => "external/test", "state" => "success"}]
-rejects("CI failed") { runner.wait }
-runner.responses[statuses_path] = []
-rejects("missing or pending CI") { runner.wait }
-runner.responses[statuses_path] = RuntimeError.new("API unavailable")
-rejects("API unavailable") { runner.wait }
-
-runner = FakeRelease.new
 lookup = ["git", "ls-remote", "origin", "refs/tags/v1.1.0", "refs/tags/v1.1.0^{}"]
 runner.commands[lookup] = "tag-object refs/tags/v1.1.0\nmerged-sha refs/tags/v1.1.0^{}"
 runner.tag
@@ -164,7 +149,7 @@ end
 # Commit fixtures only to a disposable local repository; never create tags.
 Dir.mktmpdir do |directory|
   Dir.chdir(directory) do
-    runner = GemRelease.new({"gem" => "example", "gemspec" => "example.gemspec"})
+    runner = GemRelease.new({"gem" => "example"})
     runner.command("git", "init", "-q")
     runner.command("git", "config", "user.name", "Test")
     runner.command("git", "config", "user.email", "test@example.com")
