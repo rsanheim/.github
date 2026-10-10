@@ -25,6 +25,12 @@ The gemspec is loaded from `<gem>.gemspec` at the repository root:
 ```yaml
 name: Release
 on:
+  workflow_dispatch:
+    inputs:
+      previous-ref:
+        description: Tag or commit before the version increase (for retrying an unpublished release)
+        required: true
+        type: string
   push:
     branches: [main]
   pull_request:
@@ -62,3 +68,8 @@ The workflow repository fields identify this reusable workflow; the repository
 fields identify the calling gem repository. See the
 [official RubyGems reusable workflow guide](https://guides.rubygems.org/trusted-publishing/#using-reusable-workflows).
 The GitHub token must also be allowed to push version tags under repository rules.
+
+If a release fails before gem publication, fix the cause and run the caller
+workflow manually on `main`, with `previous-ref` set to the tag or commit before
+the version increase (for example, `v0.13.0`). The normal version and changelog
+checks still run. Confirm the target gem version is unpublished before retrying.

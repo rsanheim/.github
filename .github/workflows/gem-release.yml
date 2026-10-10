@@ -42,12 +42,12 @@ jobs:
         run: ruby .release-workflow/script/gem_release.rb "$GEM" "$BASE_SHA" "$HEAD_SHA"
         env:
           GEM: ${{ inputs.gem }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || github.event.inputs.previous-ref }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
   publish:
     needs: prepare
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.prepare.outputs.release == 'true'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && needs.prepare.outputs.release == 'true'
     runs-on: ubuntu-latest
     environment: release
     permissions:
