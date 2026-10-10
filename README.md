@@ -76,8 +76,8 @@ GitHub's 100 pending-job limit). Direct version-changing pushes are rejected;
 merge commits, squash merges, and rebased PR merges are resolved by their exact
 GitHub merge SHA.
 
-Run `ruby script/gem_release_test.rb` to test version detection, changelog rules,
-exact commit selection, tag conflicts, and publication retries.
+Run `bundle install` and `bundle exec rspec` to test version detection,
+changelog rules, exact commit selection, tag conflicts, and publication retries.
 The tests use disposable local Git fixtures and mock all network operations;
 they never push a tag, upload a gem, or create a GitHub release.
 `actionlint` 1.7.12 needs the two narrow exclusions shown in the test workflow
