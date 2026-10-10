@@ -1,0 +1,19 @@
+name: Lint workflows
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      # 1.7.12 predates these documented GitHub.com context fields.
+      - run: |
+          docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 \
+            -ignore 'property "workflow_(repository|sha)" is not defined'
